@@ -3,73 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司排班系統</title>
+    <title>直播排班管理系統</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        .card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 8px; }
-        select { padding: 5px; }
-        button { background: #00b900; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f4f7f6; padding: 15px; margin: 0; }
+        .header { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .month-selector { margin: 10px 0; }
+        select { padding: 8px; font-size: 16px; width: 100%; border-radius: 5px; border: 1px solid #ddd; }
+        .day-card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #ff5722; }
+        .day-title { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .input-group { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+        .input-group label { font-size: 0.85em; color: #666; }
+        input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .btn-save { background: #ff5722; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; margin-top: 10px; font-weight: bold; cursor: pointer; }
+        .btn-save:active { background: #e64a19; }
+        .weekday-label { color: #ff5722; font-size: 0.9em; margin-left: 10px; }
     </style>
 </head>
 <body>
-    <h2>📅 班表查詢與編輯</h2>
+
+<div class="header">
     <div id="user-info">載入中...</div>
-    <hr>
-    <div id="schedule-list">正在讀取班表...</div>
+    <div class="month-selector">
+        <label>選擇月份：</label>
+        <select id="monthSelect" onchange="renderSchedule()">
+            <!-- 自動生成月份 -->
+        </select>
+    </div>
+</div>
 
-    <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbya6XMCMk2n1vsTMmicIQjRqxHcBChEtNrk4NvuYPSQDaSWIkA6opEfl7VB0_zdOMzN/exec"; // 部署 GAS 後產生的網址
+<div id="scheduleContainer"></div>
 
-        async function initLiff() {
-            await liff.init({ liffId: "2009944211-2T3zj9z3" });
-            if (!liff.isLoggedIn()) {
-                liff.login();
-            } else {
-                const profile = await liff.getProfile();
-                document.getElementById('user-info').innerText = `你好，${profile.displayName}`;
-                loadSchedule(profile);
-            }
+<script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwXcUjQGlL-_DzK8y2lExknHGndrJ742JR-QQ9wziWckkmnZRwEW5gaHgckWvZQMhMf/exec";
+    let currentUser = {};
+
+    async function init() {
+        await liff.init({ liffId: "2009944211-2T3zj9z3" });
+        if (!liff.isLoggedIn()) {
+            liff.login();
+        } else {
+            currentUser = await liff.getProfile();
+            document.getElementById('user-info').innerText = `直播主/小幫手：${currentUser.displayName}`;
+            setupMonthOptions();
+            renderSchedule();
         }
+    }
 
-        async function loadSchedule(profile) {
-            const response = await fetch(GAS_URL);
-            const data = await response.json();
-            const container = document.getElementById('schedule-list');
-            container.innerHTML = "";
-
-            // 簡單列出未來三天的編輯框作為示範
-            const days = ["2026-05-01", "2026-05-02", "2026-05-03"];
-            days.forEach(date => {
-                const currentShift = data.find(d => d.Date === date && d.UserId === profile.userId)?.Shift || "未排班";
-                const div = document.createElement('div');
-                div.className = "card";
-                div.innerHTML = `
-                    <strong>${date}</strong><br>
-                    目前班別：${currentShift}<br>
-                    修改為：
-                    <select id="select-${date}">
-                        <option value="早班">早班</option>
-                        <option value="晚班">晚班</option>
-                        <option value="休假">休假</option>
-                    </select>
-                    <button onclick="updateShift('${date}', '${profile.userId}', '${profile.displayName}')">儲存</button>
-                `;
-                container.appendChild(div);
-            });
+    function setupMonthOptions() {
+        const select = document.getElementById('monthSelect');
+        const now = new Date();
+        for (let i = 0; i < 12; i++) {
+            const date = new Date(now.getFullYear(), i, 1);
+            const val = `${date.getFullYear()}-${String(i + 1).padStart(2, '0')}`;
+            const option = new Option(`${date.getFullYear()}年 ${i + 1}月`, val);
+            if (i === now.getMonth()) option.selected = true;
+            select.add(option);
         }
+    }
 
-        async function updateShift(date, userId, userName) {
-            const shift = document.getElementById(`select-${date}`).value;
+    async function renderSchedule() {
+        const container = document.getElementById('scheduleContainer');
+        container.innerHTML = "讀取中...";
+        
+        const selectedMonth = document.getElementById('monthSelect').value; // YYYY-MM
+        const [year, month] = selectedMonth.split('-').map(Number);
+        
+        // 抓取該月已存在資料
+        const resp = await fetch(`${GAS_URL}?month=${selectedMonth}`);
+        const existingData = await resp.json();
+
+        container.innerHTML = "";
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const dateObj = new Date(year, month - 1, d);
+            const weekday = weekdays[dateObj.getDay()];
+            
+            // 尋找是否有舊資料
+            const record = existingData.find(r => r.Date === dateStr) || {};
+
+            const card = document.createElement('div');
+            card.className = "day-card";
+            card.innerHTML = `
+                <div class="day-title">${dateStr} <span class="weekday-label">星期${weekday}</span></div>
+                <div class="input-group">
+                    <label>直播時間 (24hr)</label>
+                    <input type="text" id="time-${d}" placeholder="例如 20:00" value="${record.Time || ''}">
+                    
+                    <label>蝦皮直播台名稱</label>
+                    <input type="text" id="platform-${d}" placeholder="請輸入名稱" value="${record.Platform || ''}">
+                    
+                    <label>直播主小幫手</label>
+                    <input type="text" id="staff-${d}" placeholder="填寫人員" value="${record.Staff || ''}">
+                    
+                    <label>備註</label>
+                    <input type="text" id="note-${d}" placeholder="其他說明" value="${record.Note || ''}">
+                </div>
+                <button class="btn-save" onclick="saveData('${dateStr}', '${selectedMonth}', '${weekday}', ${d})">儲存當日設定</button>
+            `;
+            container.appendChild(card);
+        }
+    }
+
+    async function saveData(date, month, weekday, index) {
+        const data = {
+            date: date,
+            month: month,
+            weekday: weekday,
+            time: document.getElementById(`time-${index}`).value,
+            platform: document.getElementById(`platform-${index}`).value,
+            staff: document.getElementById(`staff-${index}`).value,
+            note: document.getElementById(`note-${index}`).value,
+            userId: currentUser.userId,
+            userName: currentUser.displayName
+        };
+
+        const btn = event.target;
+        btn.innerText = "儲存中...";
+        btn.disabled = true;
+
+        try {
             await fetch(GAS_URL, {
-                method: "POST",
-                body: JSON.stringify({ date, userId, userName, shift })
+                method: 'POST',
+                body: JSON.stringify(data)
             });
-            alert("修改成功！");
-            location.reload();
+            alert(`${date} 儲存成功！`);
+        } catch (e) {
+            alert("儲存失敗，請檢查網路");
+        } finally {
+            btn.innerText = "儲存當日設定";
+            btn.disabled = false;
         }
+    }
 
-        initLiff();
-    </script>
+    init();
+</script>
 </body>
 </html>
