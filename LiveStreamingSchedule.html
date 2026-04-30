@@ -87,17 +87,32 @@
     let currentUser = {};
     let fullMonthData = []; // 存儲當月所有資料
 
-    async function init() {
+async function init() {
+    try {
+        // 1. 初始化 LIFF
         await liff.init({ liffId: "2009944211-2T3zj9z3" });
+
+        // 2. 檢查是否在 LINE 環境內並已登入
         if (!liff.isLoggedIn()) {
-            liff.login();
-        } else {
-            currentUser = await liff.getProfile();
-            document.getElementById('user-info').innerText = `👤 登入身份：${currentUser.displayName}`;
-            setupMonthOptions();
-            loadMonthlyData();
+            // 如果沒登入，強制跳轉授權頁面
+            // redirectUri 設定為目前網頁網址，登入後會跳回來
+            liff.login({ redirectUri: window.location.href });
+            return; // 終止後續執行，等跳轉回來
         }
+
+        // 3. 取得個人資料 (確保授權成功)
+        currentUser = await liff.getProfile();
+        document.getElementById('user-info').innerText = `👤 登入身份：${currentUser.displayName}`;
+        
+        // 4. 只有確認拿到身分後，才開始加載月份選單與班表
+        setupMonthOptions();
+        await loadMonthlyData();
+
+    } catch (err) {
+        console.error("LIFF 初始化失敗", err);
+        document.getElementById('user-info').innerText = "❌ LINE 授權失敗，請嘗試重新開啟";
     }
+}
 
     function setupMonthOptions() {
         const select = document.getElementById('monthSelect');
