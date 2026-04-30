@@ -81,13 +81,15 @@
 </div>
 
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyqYRKbesyHanWm0caKeSzrmYEIkr8L4Ju9YwiihwWSKDmmfKrfPNxLuFDmApkGoSjt/exechttps://script.google.com/macros/s/AKfycbyKcrQbqvf_CmlQ2w_gD9SQGzDqmWJONmkcZ7aqpChiQYMZiJj8uyQXT5Mp8t5N4ycZ/exec"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwCOorMSkAsnWqNghbkTYAypbx49TYWu0osE07e8zDnjJDSCKSyxAlCJTdytx9TNWAQ/exec"; 
     let fullMonthData = [];
 
-    function init() {
-        setupMonthOptions();
-        loadMonthlyData();
-    }
+function init() {
+    setupMonthOptions();
+    const selectedMonth = document.getElementById('monthSelect').value;
+    renderCalendar(selectedMonth); // 先渲染空的月曆框架
+    loadMonthlyData(); // 再非同步抓取資料
+}
 
     function setupMonthOptions() {
         const select = document.getElementById('monthSelect');
