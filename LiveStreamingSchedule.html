@@ -152,28 +152,47 @@
     }
 
     async function saveData(dateStr) {
-        const [year, month] = dateStr.split('-');
-        const data = {
-            date: dateStr,
-            month: `${year}-${month}`,
-            weekday: "", 
-            time: document.getElementById('time').value,
-            platform: document.getElementById('platform').value,
-            host: document.getElementById('host').value,
-            assistant: document.getElementById('assistant').value,
-            note: document.getElementById('note').value
-        };
+    const [year, month, day] = dateStr.split('-');
+    
+    // --- 新增：計算星期幾 ---
+    const daysOfWeek = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+    const dateObj = new Date(year, month - 1, day);
+    const weekdayName = daysOfWeek[dateObj.getDay()];
+    // -----------------------
 
-        if (!data.host) { alert("請至少填寫直播主姓名"); return; }
+    const data = {
+        date: dateStr,
+        month: `${year}-${month}`,
+        weekday: weekdayName, // 現在會正確傳送 "星期幾"
+        time: document.getElementById('time').value,
+        platform: document.getElementById('platform').value,
+        host: document.getElementById('host').value,
+        assistant: document.getElementById('assistant').value,
+        note: document.getElementById('note').value
+    };
 
-        const btn = document.getElementById('saveBtn');
-        btn.innerText = "⏳ 儲存中..."; btn.disabled = true;
+    if (!data.host) { alert("請至少填寫直播主姓名"); return; }
 
-        await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(data) });
+    const btn = document.getElementById('saveBtn');
+    btn.innerText = "⏳ 儲存中..."; 
+    btn.disabled = true;
+
+    try {
+        await fetch(GAS_URL, { 
+            method: 'POST', 
+            mode: 'no-cors', // 避免部分瀏覽器的跨域阻擋
+            body: JSON.stringify(data) 
+        });
         
-        btn.innerText = "💾 儲存今日排班"; btn.disabled = false;
-        loadMonthlyData();
+        alert("儲存成功！");
+        btn.innerText = "💾 儲存今日排班"; 
+        btn.disabled = false;
+        loadMonthlyData(); // 重新整理月曆
+    } catch (e) {
+        alert("儲存失敗，請檢查網路或 GAS 設定");
+        btn.disabled = false;
     }
+}
 
     init();
 </script>
