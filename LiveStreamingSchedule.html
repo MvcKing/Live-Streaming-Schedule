@@ -123,38 +123,55 @@
     }
 
     function renderCalendar(monthStr) {
-        const [year, month] = monthStr.split('-').map(Number);
-        const grid = document.getElementById('calendarGrid');
-        
-        // 清除舊的日期格 (保留前 7 個星期標籤)
-        while (grid.children.length > 7) grid.removeChild(grid.lastChild);
+    const [year, month] = monthStr.split('-').map(Number);
+    const grid = document.getElementById('calendarGrid');
+    
+    // 清除舊日期格 (保留星期標籤)
+    while (grid.children.length > 7) grid.removeChild(grid.lastChild);
 
-        const firstDay = new Date(year, month - 1, 1).getDay();
-        const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDay = new Date(year, month - 1, 1).getDay();
+    const daysInMonth = new Date(year, month, 0).getDate();
 
-        // 填充空白格子
-        for (let i = 0; i < firstDay; i++) {
-            const empty = document.createElement('div');
-            grid.appendChild(empty);
-        }
-
-        // 生成日期格
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const record = fullMonthData.find(r => r.Date === dateStr);
-            
-            const cell = document.createElement('div');
-            cell.className = `day-cell ${record ? 'has-data' : ''}`;
-            cell.innerHTML = `
-                <div class="day-num">${d}</div>
-                <div class="day-info">${record ? record.Platform : ''}</div>
-                <div class="day-info" style="color:#666">${record ? record.Time : ''}</div>
-            `;
-            
-            cell.onclick = () => openEdit(dateStr, record);
-            grid.appendChild(cell);
-        }
+    // 填充空白格子
+    for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        grid.appendChild(empty);
     }
+
+    // 生成日期格
+    for (let d = 1; d <= daysInMonth; d++) {
+        // 重要：確保日期格式與資料庫完全一致 (例如 2026-05-01)
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        
+        // 尋找該日資料 (增加格式容錯性)
+        const record = fullMonthData.find(r => {
+            if (!r.Date) return false;
+            // 處理可能出現的日期斜線或橫線差異
+            const formattedDbDate = r.Date.toString().replace(/\//g, '-');
+            return formattedDbDate.includes(dateStr);
+        });
+        
+        const cell = document.createElement('div');
+        cell.className = `day-cell ${record ? 'has-data' : ''}`;
+        
+        // 視覺內容：若有資料則顯示直播台與時間
+        const platformText = record ? record.Platform : '';
+        const timeText = record ? record.Time : '';
+        const staffText = record ? record.Staff : '';
+
+        cell.innerHTML = `
+            <div class="day-num">${d}</div>
+            ${record ? `
+                <div class="day-info" style="color: #ff5722; font-weight: bold;">📺 ${platformText}</div>
+                <div class="day-info" style="color: #666;">⏰ ${timeText}</div>
+                <div class="day-info" style="color: #999; font-size: 9px;">👤 ${staffText}</div>
+            ` : ''}
+        `;
+        
+        cell.onclick = () => openEdit(dateStr, record);
+        grid.appendChild(cell);
+    }
+}
 
     function openEdit(dateStr, record) {
         document.getElementById('editSection').classList.add('active');
