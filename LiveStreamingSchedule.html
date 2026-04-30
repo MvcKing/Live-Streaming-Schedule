@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公司排班系統</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 8px; }
+        select { padding: 5px; }
+        button { background: #00b900; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>📅 班表查詢與編輯</h2>
+    <div id="user-info">載入中...</div>
+    <hr>
+    <div id="schedule-list">正在讀取班表...</div>
+
+    <script>
+        const GAS_URL = "你的_GAS_URL"; // 部署 GAS 後產生的網址
+
+        async function initLiff() {
+            await liff.init({ liffId: "你的_LIFF_ID" });
+            if (!liff.isLoggedIn()) {
+                liff.login();
+            } else {
+                const profile = await liff.getProfile();
+                document.getElementById('user-info').innerText = `你好，${profile.displayName}`;
+                loadSchedule(profile);
+            }
+        }
+
+        async function loadSchedule(profile) {
+            const response = await fetch(GAS_URL);
+            const data = await response.json();
+            const container = document.getElementById('schedule-list');
+            container.innerHTML = "";
+
+            // 簡單列出未來三天的編輯框作為示範
+            const days = ["2026-05-01", "2026-05-02", "2026-05-03"];
+            days.forEach(date => {
+                const currentShift = data.find(d => d.Date === date && d.UserId === profile.userId)?.Shift || "未排班";
+                const div = document.createElement('div');
+                div.className = "card";
+                div.innerHTML = `
+                    <strong>${date}</strong><br>
+                    目前班別：${currentShift}<br>
+                    修改為：
+                    <select id="select-${date}">
+                        <option value="早班">早班</option>
+                        <option value="晚班">晚班</option>
+                        <option value="休假">休假</option>
+                    </select>
+                    <button onclick="updateShift('${date}', '${profile.userId}', '${profile.displayName}')">儲存</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function updateShift(date, userId, userName) {
+            const shift = document.getElementById(`select-${date}`).value;
+            await fetch(GAS_URL, {
+                method: "POST",
+                body: JSON.stringify({ date, userId, userName, shift })
+            });
+            alert("修改成功！");
+            location.reload();
+        }
+
+        initLiff();
+    </script>
+</body>
+</html>
