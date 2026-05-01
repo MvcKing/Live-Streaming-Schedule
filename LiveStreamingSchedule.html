@@ -132,7 +132,7 @@
             
             let infoHtml = '';
             if (record) {
-                // 這裡也加入空值保護，避免月曆格子出現 undefined
+
                 const t = (record.Time || '').includes("1899") ? "" : (record.Time || '');
                 const p = record.Platform || '';
                 const h = record["Host (直播主)"] || record.Host || '';
@@ -158,7 +158,6 @@
         document.getElementById('editSection').classList.add('active');
         document.getElementById('selectedDateTitle').innerText = `📅 ${dateStr} 班表設定`;
         
-        // --- 核心修正：加入空值保護 (|| '') 避免出現 undefined ---
         document.getElementById('time').value = (record && record.Time && !record.Time.includes("1899")) ? record.Time : '';
         document.getElementById('platform').value = record ? (record.Platform || '') : '';
         document.getElementById('host').value = record ? (record["Host (直播主)"] || record.Host || '') : '';
